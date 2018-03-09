@@ -25,14 +25,21 @@ using namespace Microsoft::glTF::Toolkit::UWP;
 
 IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder)
 {
-    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, 512);
+    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, 512, 1);
 }
 
-IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder, size_t maxTextureSize)
+IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder, size_t maxTextureSize, size_t packingIndex)
 {
     auto isGlb = gltfOrGlbFile->FileType == L".glb";
 
-    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb]()
+    if (packingIndex > 2)
+    {
+        throw std::invalid_argument("The packing index must be 0 to 2.");
+    }
+
+    TexturePacking packingOrder = (TexturePacking)packingIndex;
+
+    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packingOrder]()
     {
         return create_task([gltfOrGlbFile, isGlb]()
         {
@@ -45,20 +52,21 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 return task_from_result<StorageFile^>(gltfOrGlbFile);
             }
         })
-        .then([maxTextureSize, outputFolder, isGlb](StorageFile^ gltfFile)
+        .then([maxTextureSize, outputFolder, isGlb, packingOrder](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
             GLTFDocument document = DeserializeJson(*stream);
 
             return create_task(gltfFile->GetParentAsync())
-            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb](StorageFolder^ baseFolder)
+            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packingOrder](StorageFolder^ baseFolder)
             {
                 GLTFStreamReader streamReader(baseFolder);
 
                 // 1. Texture Packing
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
                 auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
-                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
+
+                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packingOrder, tempDirectoryA);
 
                 // 2. Texture Compression
                 convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
