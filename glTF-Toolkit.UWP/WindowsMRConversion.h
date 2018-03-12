@@ -9,6 +9,6 @@ namespace Microsoft::glTF::Toolkit::UWP
     {
     public:
         static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder);
-        static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder, size_t maxTextureSize, size_t packingIndex);
+        static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder, size_t maxTextureSize, size_t inputPackingIndex, size_t outputPackingIndex);
     };
 }

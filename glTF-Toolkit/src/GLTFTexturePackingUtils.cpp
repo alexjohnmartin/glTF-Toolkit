@@ -97,12 +97,12 @@ namespace
     }
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
+GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument& doc, const Material& material, TexturePacking inputPacking, TexturePacking outputPacking, const std::string& outputDirectory)
 {
     GLTFDocument outputDoc(doc);
 
     // No packing requested, return copy of document
-    if (packing == TexturePacking::None)
+    if (inputPacking == outputPacking)
     {
         return outputDoc;
     }
@@ -165,7 +165,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
 
     // Pack textures using DirectXTex
 
-    if (packing & TexturePacking::OcclusionRoughnessMetallic && (hasMR || hasOcclusion))
+    if (inputPacking & TexturePacking::None && outputPacking & TexturePacking::OcclusionRoughnessMetallic && (hasMR || hasOcclusion))
     {
         std::string ormImageId;
 
@@ -209,7 +209,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         AddTextureToOrmExtension(ormImageId, TexturePacking::OcclusionRoughnessMetallic, outputDoc, ormExtensionJson, allocator);
     }
 
-    if (packing & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
+    if (inputPacking & TexturePacking::None && outputPacking & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
     {
         auto rmo = std::make_unique<DirectX::ScratchImage>();
 
@@ -242,6 +242,39 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         AddTextureToOrmExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, allocator);
     }
 
+    if (inputPacking & TexturePacking::OcclusionRoughnessMetallic && outputPacking & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
+    {
+        auto rmo = std::make_unique<DirectX::ScratchImage>();
+
+        // TODO: resize?
+
+        auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *occlusionImage->GetImage(0, 0, 0);
+        if (FAILED(rmo->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
+        {
+            throw GLTFException("Failed to initialize from texture.");
+        }
+
+        auto rmoPixels = rmo->GetPixels();
+        auto metadata = rmo->GetMetadata();
+
+        for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
+        {
+            // Roughness: MR [G] -> RMO [R]
+            *GetChannelValue(rmoPixels, i, Channel::Red) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
+            // Metalness: MR [B] -> RMO [G]
+            *GetChannelValue(rmoPixels, i, Channel::Green) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Red) : 255.0f;
+            // Occlusion: Occ [R] -> RMO [B]
+            *GetChannelValue(rmoPixels, i, Channel::Blue) = hasOcclusion ? *GetChannelValue(occlusionPixels, i, Channel::Green) : 255.0f;
+        }
+
+        auto imagePath = SaveAsPng(rmo, "packing_rmo_" + material.id + ".png", outputDirectory);
+
+        // Add back to GLTF
+        auto rmoImageId = AddImageToDocument(outputDoc, imagePath);
+
+        AddTextureToOrmExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, allocator);
+    }
+
     if (hasNormal)
     {
         rapidjson::Value ormNormalTextureJson(rapidjson::kObjectType);
@@ -264,19 +297,19 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     return outputDoc;
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking packing, const std::string& outputDirectory)
+GLTFDocument GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking inputPacking, TexturePacking outputPacking, const std::string& outputDirectory)
 {
     GLTFDocument outputDoc(doc);
 
     // No packing requested, return copy of document
-    if (packing == TexturePacking::None)
+    if (inputPacking == outputPacking)
     {
         return outputDoc;
     }
 
     for (auto material : doc.materials.Elements())
     {
-        outputDoc = PackMaterialForWindowsMR(streamReader, outputDoc, material, packing, outputDirectory);
+        outputDoc = PackMaterialForWindowsMR(streamReader, outputDoc, material, inputPacking, outputPacking, outputDirectory);
     }
 
     return outputDoc;

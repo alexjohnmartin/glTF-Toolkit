@@ -25,40 +25,41 @@ using namespace Microsoft::glTF::Toolkit::UWP;
 
 IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder)
 {
-    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, 512, 1);
+    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, 512, 0, 1);
 }
 
-IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder, size_t maxTextureSize, size_t packingIndex)
+IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder, size_t maxTextureSize, size_t inputPackingIndex, size_t outputPackingIndex)
 {
     auto isGlb = gltfOrGlbFile->FileType == L".glb";
 
-    if (packingIndex > 2)
+    if (inputPackingIndex > 2 || outputPackingIndex > 2)
     {
-        throw std::invalid_argument("The packing index must be 0 to 2.");
+        throw std::invalid_argument("A packing index must be 0 to 2.");
     }
 
-    TexturePacking packingOrder = (TexturePacking)packingIndex;
+    TexturePacking inputPackingOrder = (TexturePacking)inputPackingIndex;
+    TexturePacking outputPackingOrder = (TexturePacking)outputPackingIndex;
 
-    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packingOrder]()
+    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, inputPackingOrder, outputPackingOrder]()
     {
-        return create_task([gltfOrGlbFile, isGlb]()
+        return create_task([gltfOrGlbFile, isGlb, outputFolder]()
         {
             if (isGlb)
             {
-                return create_task(GLTFSerialization::UnpackGLBAsync(gltfOrGlbFile, ApplicationData::Current->TemporaryFolder));
+                return create_task(GLTFSerialization::UnpackGLBAsync(gltfOrGlbFile, outputFolder));
             }
             else
             {
                 return task_from_result<StorageFile^>(gltfOrGlbFile);
             }
         })
-        .then([maxTextureSize, outputFolder, isGlb, packingOrder](StorageFile^ gltfFile)
+        .then([maxTextureSize, outputFolder, isGlb, inputPackingOrder, outputPackingOrder](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
             GLTFDocument document = DeserializeJson(*stream);
 
             return create_task(gltfFile->GetParentAsync())
-            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packingOrder](StorageFolder^ baseFolder)
+            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, inputPackingOrder, outputPackingOrder](StorageFolder^ baseFolder)
             {
                 GLTFStreamReader streamReader(baseFolder);
 
@@ -66,7 +67,7 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
                 auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
 
-                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packingOrder, tempDirectoryA);
+                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, inputPackingOrder, outputPackingOrder, tempDirectoryA);
 
                 // 2. Texture Compression
                 convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
