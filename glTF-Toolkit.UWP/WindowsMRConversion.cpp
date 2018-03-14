@@ -69,7 +69,7 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packingOrder, tempDirectoryA);
 
                 // 2. Texture Compression
-                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
+                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, convertedDoc, tempDirectoryA, maxTextureSize);
 
                 // 3. Make sure there's a default scene set
                 if (!convertedDoc.HasDefaultScene())
