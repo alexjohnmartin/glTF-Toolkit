@@ -35,7 +35,7 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that uses the MSFT_packing_occlusionRoughnessMetallic extension to point to the packed textures.
         /// </returns>
-        static GLTFDocument PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const Material & material, TexturePacking inputPacking, TexturePacking outputPacking, const std::string& outputDirectory);
+        static GLTFDocument PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const Material & material, TexturePacking outputPacking, const std::string& outputDirectory);
 
         /// <summary>
         /// Applies <see cref="PackMaterialForWindowsMR" /> to every material in the document, following the same parameter structure as that function.
@@ -47,7 +47,7 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that uses the MSFT_packing_occlusionRoughnessMetallic extension to point to the packed textures.
         /// </returns>
-        static GLTFDocument PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking inputPacking, TexturePacking outputPacking, const std::string& outputDirectory);
+        static GLTFDocument PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking outputPacking, const std::string& outputDirectory);
     };
 }
 
