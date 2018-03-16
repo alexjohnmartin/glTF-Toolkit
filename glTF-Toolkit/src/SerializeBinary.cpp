@@ -38,7 +38,8 @@ namespace
             return MIMETYPE_PNG;
         }
 
-        return "text/plain";
+        // DDS textures coming from pre-packed GLBs lose their file extension so we dafault to the DDS Mime type here
+        return MIMETYPE_DDS;
     }
 
     template <typename T>

@@ -288,6 +288,12 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     ormExtensionJson.Accept(writer);
 
+    auto existingOrmExtension = outputMaterial.extensions.find(EXTENSION_MSFT_PACKING_ORM);
+    if (existingOrmExtension != outputMaterial.extensions.end())
+    {
+        outputMaterial.extensions.erase(existingOrmExtension);
+    }
+
     outputMaterial.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_PACKING_ORM, buffer.GetString()));
 
     outputDoc.materials.Replace(outputMaterial);
